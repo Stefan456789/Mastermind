@@ -6,8 +6,10 @@ import androidx.annotation.RequiresApi;
 
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -18,33 +20,41 @@ import java.util.stream.Collectors;
 public abstract class SXMLDecoder {
 
 
-    private static ExecutorService s;
+    private static final ExecutorService s = Executors.newCachedThreadPool();
+
 
     @RequiresApi(api = Build.VERSION_CODES.N)
-    private static Map<String, Object> SXMLMapEleminateFutures(List<SXMLEntry> set, int offset){
-        if (s == null)
-            s = Executors.newCachedThreadPool();
+    public static Map<String, Object> decode(String encoded){
+        return SXMLMapEleminateFutures(recursivelyParse(encoded, ""));
+    }
 
-        return set.stream().map(x -> {
-            if (x.getValue().getClass().getSimpleName().equals("FutureTask")){
-                    try {
-                        return SXMLMapEleminateFutures((List<SXMLEntry>)((FutureTask) x.getValue()).get(), offset+6);
-                    } catch (InterruptedException | ExecutionException e) {
-                        e.printStackTrace();
-                    }
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    private static Map<String, Object> SXMLMapEleminateFutures(List<SXMLEntry> set){
+
+        Map<String, Object> newMap = new TreeMap<>();
+        for (SXMLEntry e : set){
+            if (e.getValue() instanceof FutureTask){
+                try {
+                    newMap.put(e.getKey(), SXMLMapEleminateFutures((List<SXMLEntry>)((FutureTask) e.getValue()).get()));
+                } catch (ExecutionException | InterruptedException ex) {
+                    ex.printStackTrace();
+                }
+            } else {
+                newMap.put(e.getKey(), e.getValue());
             }
-            return x;
-        }).collect(Collectors.toMap(x -> x.toString(), y-> y));
+        }
+
+
+        return newMap;
     }
 
     private static List<SXMLEntry> recursivelyParse(String input, String currentTag) {
         List<SXMLEntry> output = new ArrayList<>();
         String[] temp = null;
         do{
-
             temp = input.split("<");
-            if (temp[0].length() != 0)
-                output.add(new SXMLEntry(currentTag, temp[0]));
+            if (temp[0].length() != 0 && temp.length == 1)
+                output.add(new SXMLEntry(currentTag, temp[0].trim()));
             if (temp.length > 1){
                 String tag = "<" + temp[1].split(">")[0] + ">";
                 int indexOfEndTag = input.indexOf(new StringBuilder(tag).insert(1, '/').toString());

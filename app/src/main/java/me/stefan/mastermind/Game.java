@@ -18,6 +18,7 @@ public class Game {
         if (tries >= config.guessRounds)
             return "NOT SOLVED! Solution was " + solution;
         if (solution.isEmpty() || tries == 0){
+            solution = "";
             for (int i = 0; i < config.codeLength; i++){
                 char next = config.alphabet[(int) (Math.random() * config.alphabet.length)];
                 if (!config.doubleAllowed && solution.contains("" + next)) {
@@ -49,5 +50,9 @@ public class Game {
         }
 
         return returnVal.toString();
+    }
+
+    public void setSolution(String solution) {
+        this.solution = solution;
     }
 }

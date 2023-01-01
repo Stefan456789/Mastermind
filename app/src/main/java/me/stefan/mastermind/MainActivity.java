@@ -3,6 +3,7 @@ package me.stefan.mastermind;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Entity;
 import android.content.res.AssetManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -111,17 +112,51 @@ public class MainActivity extends AppCompatActivity {
         }
         try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(openFileInput(saveFileName)));
-            reader.lines().forEach(x -> Log.d("Input", x));
+            String encoded = reader.lines().collect(Collectors.joining());
+            Map<String, Object> saveState = (Map<String, Object>) SXMLDecoder.decode(encoded).get("<saveState>");
+            clearList();
+            for (Map.Entry<String, Object> e : saveState.entrySet()){
+                if (e.getKey().equals("<code>")){
+                    String newSolution = getMapEntryValue(e.getValue());
+                    if (newSolution != null)
+                        game.setSolution(newSolution);
+                }
+                if (e.getKey().contains("guess")){
+                    String result = getMapEntryValue(((Map<?, ?>) e.getValue()).get("<result>"));
+                    String userInput = getMapEntryValue(((Map<?, ?>) e.getValue()).get("<userInput>"));
+
+                    addList(removeComma(userInput) + "|" + removeComma(result));
+                }
+
+
+            }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
+    private static String removeComma(String e){
+        return Arrays.stream(e.split(",")).map(String::trim).collect(Collectors.joining());
+    }
+
+    private static String getMapEntryValue(Object e){
+        if (e instanceof String){
+            return (String) e;
+        } else if (e instanceof Map) {
+            return (String)((Map<?, ?>) e).values().toArray()[0];
+        }
+        return null;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
     public void save(View v){
 
         try {
-            new OutputStreamWriter(openFileOutput(saveFileName, MODE_PRIVATE)).write(SXMLEncoder.encode(convertBoardToMap(game.solution, gameList)));
+            OutputStreamWriter writer = new OutputStreamWriter(openFileOutput(saveFileName, MODE_PRIVATE));
+            String encoded = SXMLEncoder.encode(convertBoardToMap(game.solution, gameList));
+            writer.write(encoded);
+            writer.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -138,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
             Map<String, Object> guess = new HashMap<>();
             guess.put("userInput" ,list.get(i).split("\\|")[0].chars().mapToObj(x -> (char) x + ", ").collect(Collectors.joining()));
             var debug = list.get(i).split("\\|");
-            guess.put("result" ,list.get(i).split("\\|").length < 1 ? "" : list.get(i).split("\\|")[1].chars().mapToObj(x -> (char) x + ", ").collect(Collectors.joining()));;
+            guess.put("result" ,list.get(i).split("\\|").length < 2 ? "" : list.get(i).split("\\|")[1].chars().mapToObj(x -> (char) x + ", ").collect(Collectors.joining()));;
             out.put("guess" + i, guess);
         }
         outer.put("saveState", out);

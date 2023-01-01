@@ -3,9 +3,10 @@ package me.stefan.mastermind;
 import java.util.Map;
 
 public class SXMLEncoder {
-    private static StringBuilder output = new StringBuilder();
+    private static StringBuilder output;
 
     public static String encode(Map<String, Object> sXML){
+        output = new StringBuilder();
         recursiveEncode(sXML, 0);
         return output.toString();
     }
